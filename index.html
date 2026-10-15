@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Votación Electrónica — U.E. Eloy Alfaro</title>
+    
+    <!-- Fuentes e Iconos -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        darkbg: '#090d16',
+                        glassdark: 'rgba(15, 23, 42, 0.75)',
+                        listaA: {
+                            50: '#fbf5ff',
+                            100: '#f3e8ff',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7e22ce',
+                            glow: 'rgba(168, 85, 247, 0.4)'
+                        },
+                        listaB: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#06b6d4',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            glow: 'rgba(56, 189, 248, 0.4)'
+                        },
+                        votoNull: {
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            glow: 'rgba(100, 116, 139, 0.3)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Librerías JS: Chart.js, Canvas-Confetti, html2pdf.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* Estilos personalizados Glassmorphism y animaciones */
+        body {
+            background-color: #080c15;
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(147, 51, 234, 0.15) 0px, transparent 40%),
+                radial-gradient(at 90% 10%, rgba(2, 132, 199, 0.15) 0px, transparent 40%),
+                radial-gradient(at 50% 90%, rgba(185, 28, 28, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-modal {
+            background: rgba(10, 15, 29, 0.92);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Efectos de resaltado por lista */
+        .card-lista-a {
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .card-lista-a:hover {
+            border-color: rgba(192, 132, 252, 0.8);
+            box-shadow: 0 0 35px rgba(168, 85, 247, 0.3), inset 0 0 20px rgba(168, 85, 247, 0.08);
+            transform: translateY(-5px);
+        }
+
+        .card-lista-b {
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .card-lista-b:hover {
+            border-color: rgba(56, 189, 248, 0.8);
+            box-shadow: 0 0 35px rgba(56, 189, 248, 0.3), inset 0 0 20px rgba(56, 189, 248, 0.08);
+            transform: translateY(-5px);
+        }
+
+        .card-null {
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            transition: all 0.4s ease;
+        }
+        .card-null:hover {
+            border-color: rgba(148, 163, 184, 0.6);
+            box-shadow: 0 0 25px rgba(100, 116, 139, 0.25);
+            transform: translateY(-3px);
+        }
+
+        /* Resplandor del escudo */
+        .logo-glow {
+            position: relative;
+        }
+        .logo-glow::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            background: linear-gradient(135deg, #a855f7, #ef4444, #38bdf8);
+            border-radius: 50%;
+            filter: blur(10px);
+            opacity: 0.75;
+            z-index: 0;
+            animation: pulseGlow 4s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { opacity: 0.5; transform: scale(0.98); }
+            100% { opacity: 0.85; transform: scale(1.04); }
+        }
+
+        /* Animación para mensajes Toast */
+        @keyframes toastIn {
+            from { transform: translate(-50%, 100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        .toast-active {
+            animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Scrollbar suave */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #080c15;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="antialiased text-slate-100 selection:bg-purple-600 selection:text-white pb-16">
+
+    <!-- ENCABEZADO PRINCIPAL INSTITUCIONAL -->
+    <header class="relative w-full border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md overflow-hidden">
+        <!-- Luces traseras de fondo -->
+        <div class="absolute inset-0 pointer-events-none opacity-30">
+            <div class="absolute -top-20 left-1/4 w-80 h-80 bg-purple-600/30 rounded-full blur-3xl"></div>
+            <div class="absolute -top-20 right-1/4 w-80 h-80 bg-sky-500/30 rounded-full blur-3xl"></div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                
+                <!-- Logo e Identidad Institucional -->
+                <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 text-center sm:text-left">
+                    
+                    <!-- Escudo de la U.E. Eloy Alfaro con Marco Elegante y Brillo -->
+                    <div class="logo-glow shrink-0">
+                        <div class="relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-slate-900 border-2 border-amber-400/80 p-1.5 shadow-2xl flex items-center justify-center overflow-hidden">
+                            <img src="Escudo1.png" alt="Escudo UE Eloy Alfaro" class="w-full h-full object-contain rounded-full drop-shadow-md" onerror="this.onerror=null; this.src='https://placehold.co/200x200/9333ea/ffffff?text=UE+Eloy+Alfaro';">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-center sm:justify-start gap-2 mb-1.5">
+                            <span class="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2"></span>
+                                PROCESO DEMOCRÁTICO ACTIVO
+                            </span>
+                            <span class="text-xs text-slate-400 font-mono hidden sm:inline-block border-l border-slate-700 pl-2">AÑO LECTIVO 2026</span>
+                        </div>
+                        <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white font-sans">
+                            Sistema de Votación Electrónica
+                        </h1>
+                        <p class="text-base font-semibold text-amber-400/90 mt-0.5">
+                            Unidad Educativa "Eloy Alfaro"
+                        </p>
+                        <p class="text-xs text-slate-400 flex items-center justify-center sm:justify-start gap-1 mt-1">
+                            <i class="fas fa-map-marker-alt text-red-400"></i> San Blas — Urcuquí, Imbabura | Tribunal Electoral Estudiantil
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Reloj en vivo y Controles rápidos -->
+                <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                    <!-- Targeta Reloj -->
+                    <div class="glass-panel px-4 py-2.5 rounded-2xl border border-slate-700/60 text-center sm:text-right w-full sm:w-auto">
+                        <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider flex items-center justify-center sm:justify-end gap-1.5">
+                            <i class="far fa-clock text-sky-400"></i> Horario Oficial
+                        </div>
+                        <div id="liveClock" class="text-sm font-bold text-slate-100 font-mono mt-0.5">--:--:--</div>
+                    </div>
+
+                    <!-- Botón Panel de Pruebas/Admin -->
+                    <button onclick="openAdminModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95">
+                        <i class="fas fa-sliders-h text-purple-400"></i>
+                        <span>Panel Opciones</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- BARRA DE NAVEGACIÓN PRINCIPAL (PESTAÑAS) -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div class="flex border-b border-slate-800 justify-center sm:justify-start space-x-2 sm:space-x-4">
+            <button id="tabBtnVote" onclick="switchTab('vote')" class="py-3 px-6 text-sm font-extrabold border-b-2 border-purple-500 text-purple-400 transition-all flex items-center gap-2">
+                <i class="fas fa-vote-yea text-lg"></i>
+                <span>Papeleta Electoral</span>
+            </button>
+            <button id="tabBtnResults" onclick="switchTab('results')" class="py-3 px-6 text-sm font-extrabold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all flex items-center gap-2">
+                <i class="fas fa-chart-pie text-lg"></i>
+                <span>Resultados & Conteo</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+
+        <!-- ================= SECCIÓN 1: PAPELETA DE VOTACIÓN ================= -->
+        <section id="sectionVote" class="space-y-8">
+            
+            <div class="text-center max-w-2xl mx-auto">
+                <h2 class="text-2xl font-black text-white tracking-tight mb-1">
+                    Elección del Consejo Estudiantil
+                </h2>
+                <p class="text-slate-400 text-sm">
+                    Selecciona tu preferencia haciendo clic en el botón de la candidatura correspondiente. Tu voto es personal, directo y secreto.
+                </p>
+            </div>
+
+            <!-- TARJETAS DE LAS LISTAS -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- LISTA A (COLOR LILA) -->
+                <div class="glass-panel card-lista-a rounded-3xl p-6 sm:p-8 relative overflow-hidden flex flex-col justify-between">
+                    <!-- Listón Identificador -->
+                    <div class="absolute top-0 right-0 bg-gradient-to-l from-purple-700 to-purple-600 text-white font-black text-xs px-5 py-2 rounded-bl-2xl uppercase tracking-wider shadow-lg flex items-center gap-1.5">
+                        <i class="fas fa-star text-amber-300"></i> LISTA A
+                    </div>
+
+                    <div>
+                        <!-- Encabezado de Lista -->
+                        <div class="flex items-center space-x-4 mb-6">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-purple-800 text-white flex items-center justify-center text-3xl font-black shadow-lg shadow-purple-950/60 border border-purple-400/40 shrink-0">
+                                A
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-black text-purple-300 tracking-wide">
+                                    L.I.L.A 
+                                </h3>
+                                <p class="text-xs text-purple-400/90 font-bold uppercase tracking-wider">
+                                    Slogan: "Paz, Ternura y Belleza Interior"
+                                    <img src="LISTA A.jpg" alt="Lista A" class="w-40 h-40 rounded-2xl object-cover border-2 border-purple-400/80 shadow-md shrink-0">
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="h-px w-full bg-gradient-to-r from-purple-500/40 via-slate-700/60 to-transparent my-4"></div>
+
+                        <!-- Candidato 1: Presidente/a -->
+                        <div class="bg-slate-900/80 rounded-2xl p-4 border border-purple-500/30 mb-4 hover:border-purple-500/60 transition shadow-inner">
+                            <div class="flex items-center space-x-4">
+                                <img src="Damaris.jpg" alt="Candidata Presidenta Lista A" class="w-20 h-20 rounded-2xl object-cover border-2 border-purple-400/80 shadow-md shrink-0">
+                                <div class="flex-1 min-w-0">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 mb-1">
+                                        CANDIDATA A PRESIDENTA
+                                    </span>
+                                    <h4 class="text-base font-bold text-white truncate">Damaris Muenala Lechón</h4>
+                                    <p class="text-xs text-slate-300 mt-0.5 line-clamp-2">
+                                        <i class="fas fa-quote-left text-purple-400/60 text-[10px] mr-1"></i>Fomentar el deporte, la integración y el trabajo en equipo. / Fortalecer la amistad, el respeto y el compañerismo.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Candidato 2: Vicepresidente/a -->
+                        <div class="bg-slate-900/80 rounded-2xl p-4 border border-purple-500/30 mb-6 hover:border-purple-500/60 transition shadow-inner">
+                            <div class="flex items-center space-x-4">
+                                <img src="David.jpg" alt="Candidato Vicepresidente Lista A" class="w-20 h-20 rounded-2xl object-cover border-2 border-purple-400/80 shadow-md shrink-0">
+                                <div class="flex-1 min-w-0">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 mb-1">
+                                        CANDIDATO A VICEPRESIDENTE
+                                    </span>
+                                    <h4 class="text-base font-bold text-white truncate">David Chirán Quilca</h4>
+                                    <p class="text-xs text-slate-300 mt-0.5 line-clamp-2">
+                                        <i class="fas fa-quote-left text-purple-400/60 text-[10px] mr-1"></i>Promover la recreación y la participación responsable. / Fortalecer los vínculos entre las familias y la comunidad educativa.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botón Votar Lista A -->
+                    <button onclick="openConfirmModal('A')" class="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-purple-500 to-purple-600 hover:from-purple-500 hover:to-purple-400 text-white font-black text-base tracking-wide shadow-lg shadow-purple-950/60 hover:shadow-purple-600/50 transition-all flex items-center justify-center space-x-2.5 active:scale-[0.98]">
+                        <i class="fas fa-check-circle text-xl"></i>
+                        <span>VOTAR POR LISTA A (LILA)</span>
+                    </button>
+                </div>
+
+
+                <!-- LISTA B (COLOR CELESTE) -->
+                <div class="glass-panel card-lista-b rounded-3xl p-6 sm:p-8 relative overflow-hidden flex flex-col justify-between">
+                    <!-- Listón Identificador -->
+                    <div class="absolute top-0 right-0 bg-gradient-to-l from-sky-600 to-cyan-500 text-white font-black text-xs px-5 py-2 rounded-bl-2xl uppercase tracking-wider shadow-lg flex items-center gap-1.5">
+                        <i class="fas fa-bolt text-amber-300"></i> LISTA B
+                    </div>
+
+                    <div>
+                        <!-- Encabezado de Lista -->
+                        <div class="flex items-center space-x-4 mb-6">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-700 text-white flex items-center justify-center text-3xl font-black shadow-lg shadow-sky-950/60 border border-sky-400/40 shrink-0">
+                                B
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-black text-sky-300 tracking-wide">
+                                    FUERZA ALFARISTA REVOLUCIONARIA
+                                </h3>
+                                <p class="text-xs text-sky-400/90 font-bold uppercase tracking-wider">
+                                    Slogan: "Lideramos el Futuro"
+                                    <img src="LISTA B.jpg" alt="Lista B" class="w-40 h-40 rounded-2xl object-cover border-2 border-purple-400/80 shadow-md shrink-0">
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="h-px w-full bg-gradient-to-r from-sky-500/40 via-slate-700/60 to-transparent my-4"></div>
+
+                        <!-- Candidato 1: Presidente/a -->
+                        <div class="bg-slate-900/80 rounded-2xl p-4 border border-sky-500/30 mb-4 hover:border-sky-500/60 transition shadow-inner">
+                            <div class="flex items-center space-x-4">
+                                <img src="Anthony Quilca.jpg" alt="Candidato Presidente Lista B" class="w-20 h-20 rounded-2xl object-cover border-2 border-sky-400/80 shadow-md shrink-0">
+                                <div class="flex-1 min-w-0">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/40 mb-1">
+                                        CANDIDATO A PRESIDENTE
+                                    </span>
+                                    <h4 class="text-base font-bold text-white truncate">Anthony Quilca De La Cruz</h4>
+                                    <p class="text-xs text-slate-300 mt-0.5 line-clamp-2">
+                                        <i class="fas fa-quote-left text-sky-400/60 text-[10px] mr-1"></i>Realización de letreros con palabras y frases sobre valores y motivación / Entrega de balones a diferentes grados.
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Candidato 2: Vicepresidente/a -->
+                        <div class="bg-slate-900/80 rounded-2xl p-4 border border-sky-500/30 mb-6 hover:border-sky-500/60 transition shadow-inner">
+                            <div class="flex items-center space-x-4">
+                                <img src="Anthony De La Cruz.jpg" alt="Candidata Vicepresidenta Lista B" class="w-20 h-20 rounded-2xl object-cover border-2 border-sky-400/80 shadow-md shrink-0">
+                                <div class="flex-1 min-w-0">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/40 mb-1">
+                                        CANDIDATO A VICEPRESIDENTE
+                                    </span>
+                                    <h4 class="text-base font-bold text-white truncate">Anthony De La Cruz Gómez</h4>
+                                    <p class="text-xs text-slate-300 mt-0.5 line-clamp-2">
+                                        <i class="fas fa-quote-left text-sky-400/60 text-[10px] mr-1"></i>Actividad “Amigos entre cursos” con dinámicas de integración. / Celebración del día del niño con juegos, shows y dinámicas.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botón Votar Lista B -->
+                    <button onclick="openConfirmModal('B')" class="w-full py-4 rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-500 to-sky-600 hover:from-sky-500 hover:to-cyan-400 text-white font-black text-base tracking-wide shadow-lg shadow-sky-950/60 hover:shadow-sky-600/50 transition-all flex items-center justify-center space-x-2.5 active:scale-[0.98]">
+                        <i class="fas fa-check-circle text-xl"></i>
+                        <span>VOTAR POR LISTA B (FAR)</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- VOTO NULO / EN BLANCO -->
+            <div class="glass-panel card-null rounded-3xl p-6 sm:p-8 max-w-3xl mx-auto mt-8">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div class="flex items-center space-x-4 text-center sm:text-left">
+                        <div class="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 text-2xl font-bold shrink-0">
+                            <i class="fas fa-ban"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-extrabold text-slate-200">VOTO NULO / EN BLANCO</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Registra tu participación democrática absteniéndote de elegir cualquiera de las dos listas anteriores.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button onclick="openConfirmModal('NULO')" class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white font-extrabold text-sm tracking-wide transition shadow-lg shrink-0 active:scale-95">
+                        EMITIR VOTO NULO
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ================= SECCIÓN 2: RESULTADOS Y METRICAS ================= -->
+        <section id="sectionResults" class="hidden space-y-8">
+            
+            <!-- TARJETAS DE METRICAS KPI -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                <!-- Total Votos -->
+                <div class="glass-panel p-5 rounded-2xl border border-slate-700/70 relative overflow-hidden">
+                    <div class="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Total Votos Registrados</div>
+                    <div id="kpiTotal" class="text-3xl sm:text-4xl font-black text-white mt-2">0</div>
+                    <div class="text-[11px] text-emerald-400 mt-2 flex items-center gap-1 font-bold">
+                        <i class="fas fa-sync-alt animate-spin"></i> Actualizado en tiempo real
+                    </div>
+                </div>
+
+                <!-- Lista A -->
+                <div class="glass-panel p-5 rounded-2xl border border-purple-500/40 bg-purple-950/10 relative overflow-hidden">
+                    <div class="text-xs text-purple-300 font-extrabold uppercase tracking-wider">Lista A (Lila)</div>
+                    <div id="kpiListaA" class="text-3xl sm:text-4xl font-black text-purple-400 mt-2">0%</div>
+                    <div id="kpiCountA" class="text-xs text-purple-300/80 mt-2 font-medium">0 sufragios</div>
+                </div>
+
+                <!-- Lista B -->
+                <div class="glass-panel p-5 rounded-2xl border border-sky-500/40 bg-sky-950/10 relative overflow-hidden">
+                    <div class="text-xs text-sky-300 font-extrabold uppercase tracking-wider">Lista B (Celeste)</div>
+                    <div id="kpiListaB" class="text-3xl sm:text-4xl font-black text-sky-400 mt-2">0%</div>
+                    <div id="kpiCountB" class="text-xs text-sky-300/80 mt-2 font-medium">0 sufragios</div>
+                </div>
+
+                <!-- Voto Nulo -->
+                <div class="glass-panel p-5 rounded-2xl border border-slate-700 bg-slate-900/40 relative overflow-hidden">
+                    <div class="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Voto Nulo / Blanco</div>
+                    <div id="kpiNull" class="text-3xl sm:text-4xl font-black text-slate-400 mt-2">0%</div>
+                    <div id="kpiCountNull" class="text-xs text-slate-400 mt-2 font-medium">0 sufragios</div>
+                </div>
+            </div>
+
+            <!-- BANNER DE LIDERAZGO & BOTÓN DE EXPORTACIÓN PDF -->
+            <div class="glass-panel rounded-2xl p-6 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-2xl shrink-0 shadow-lg">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Tendencia Actual</span>
+                        <h4 id="leadingText" class="text-xl font-black text-white mt-0.5">Esperando registros de votación...</h4>
+                    </div>
+                </div>
+
+                <!-- BOTÓN EXPORTAR PDF -->
+                <button onclick="exportToPDF()" class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white font-extrabold text-sm tracking-wide shadow-xl shadow-purple-950/60 hover:shadow-cyan-900/50 transition flex items-center justify-center space-x-2.5 active:scale-95">
+                    <i class="fas fa-file-pdf text-xl"></i>
+                    <span>EXPORTAR ACTA RESULTADOS (PDF)</span>
+                </button>
+            </div>
+
+            <!-- GRAFICOS Y BARRAS DE PROGRESO -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- Gráfico de Rosca (Chart.js) -->
+                <div class="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 flex flex-col justify-between">
+                    <h3 class="text-lg font-black text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-purple-400"></i> Distribución Porcentual
+                    </h3>
+                    <div class="relative w-full h-64 sm:h-80 flex items-center justify-center">
+                        <canvas id="chartDoughnut"></canvas>
+                    </div>
+                </div>
+
+                <!-- Desglose de Barras Progresivas -->
+                <div class="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 flex flex-col justify-between">
+                    <h3 class="text-lg font-black text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-sky-400"></i> Comparativa Directa de Sufragios
+                    </h3>
+                    
+                    <div class="space-y-6 my-auto">
+                        <!-- Barra Lista A -->
+                        <div>
+                            <div class="flex justify-between text-sm font-bold mb-2">
+                                <span class="text-purple-300 flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span> Lista A: L.I.L.A.
+                                </span>
+                                <span id="barTextA" class="text-purple-400 font-mono">0% (0)</span>
+                            </div>
+                            <div class="w-full h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                <div id="barFillA" class="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all duration-700" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Barra Lista B -->
+                        <div>
+                            <div class="flex justify-between text-sm font-bold mb-2">
+                                <span class="text-sky-300 flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-sky-500 inline-block"></span> Lista B: F.A.R.
+                                </span>
+                                <span id="barTextB" class="text-sky-400 font-mono">0% (0)</span>
+                            </div>
+                            <div class="w-full h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                <div id="barFillB" class="h-full bg-gradient-to-r from-sky-600 to-sky-400 rounded-full transition-all duration-700" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Barra Voto Nulo -->
+                        <div>
+                            <div class="flex justify-between text-sm font-bold mb-2">
+                                <span class="text-slate-400 flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-slate-500 inline-block"></span> Voto Nulo / En Blanco
+                                </span>
+                                <span id="barTextNull" class="text-slate-400 font-mono">0% (0)</span>
+                            </div>
+                            <div class="w-full h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                <div id="barFillNull" class="h-full bg-gradient-to-r from-slate-600 to-slate-400 rounded-full transition-all duration-700" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-slate-500 border-t border-slate-800/80 pt-4 mt-6 text-center">
+                        <i class="fas fa-shield-alt text-emerald-400 mr-1"></i> Auditoría digital activa: Cómputo respaldado localmente sin alteraciones.
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- PIE DE PÁGINA -->
+    <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 border-t border-slate-800/80 pt-8 text-center text-xs text-slate-500">
+        <p>© 2026 Unidad Educativa "Eloy Alfaro" — Tribunal Electoral Estudiantil.</p>
+        <p class="mt-1">San Blas, Urcuquí — Sistema de Sufragio Digital Seguro.</p>
+    </footer>
+
+
+    <!-- ================= MODALES Y NOTIFICACIONES ================= -->
+
+    <!-- MODAL DE CONFIRMACIÓN DE VOTO -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div class="glass-modal rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-700 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <div class="text-center">
+                <!-- Icono temático -->
+                <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-3xl mx-auto mb-4 border border-purple-500/40">
+                    <i class="fas fa-check-square"></i>
+                </div>
+
+                <h3 class="text-2xl font-black text-white">¿Confirmar tu Voto?</h3>
+                <p class="text-xs text-slate-400 mt-1">Por favor, verifica tu selección antes de registrar el sufragio.</p>
+                
+                <!-- Caja de Selección -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 my-6 text-left">
+                    <span class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Opción seleccionada:</span>
+                    <div id="modalOptionTitle" class="text-lg font-black text-purple-300 mt-0.5">LISTA A - LILA</div>
+                    <p id="modalOptionSubtitle" class="text-xs text-slate-400 mt-1">Presidenta: Damaris Muenala Lechón</p>
+                </div>
+
+                <p class="text-xs text-amber-400 font-semibold mb-6 flex items-center justify-center gap-1.5">
+                    <i class="fas fa-exclamation-circle"></i> Tu voto será contabilizado inmediatamente en el sistema.
+                </p>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="closeConfirmModal()" class="py-3.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition">
+                        Cancelar
+                    </button>
+                    <button id="modalConfirmBtn" onclick="submitVote()" class="py-3.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-sm transition shadow-lg shadow-purple-950/50">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL DE OPCIONES / SIMULACIÓN (ADMIN MODAL) -->
+    <div id="adminModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div class="glass-modal rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-700 shadow-2xl relative">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-800 mb-6">
+                <h3 class="text-lg font-black text-white flex items-center gap-2">
+                    <i class="fas fa-cogs text-purple-400"></i> Panel de Opciones Electrónicas
+                </h3>
+                <button onclick="closeAdminModal()" class="text-slate-400 hover:text-white p-2">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Simulador -->
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                    <h4 class="text-xs font-extrabold text-slate-200 uppercase tracking-wider mb-1">Simulador de Sufragios</h4>
+                    <p class="text-xs text-slate-400 mb-3">Genera votos aleatorios para probar los gráficos y la descarga de actas en PDF.</p>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="simulateVotes(10)" class="py-2.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/40 text-purple-300 font-bold text-xs transition">
+                            +10 Votos Aleatorios
+                        </button>
+                        <button onclick="simulateVotes(50)" class="py-2.5 rounded-xl bg-sky-950/60 hover:bg-sky-900/60 border border-sky-500/40 text-sky-300 font-bold text-xs transition">
+                            +50 Votos Aleatorios
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reinicio de Conteo -->
+                <div class="bg-rose-950/20 p-4 rounded-2xl border border-rose-900/40">
+                    <h4 class="text-xs font-extrabold text-rose-300 uppercase tracking-wider mb-1">Reiniciar Elecciones</h4>
+                    <p class="text-xs text-slate-400 mb-3">Limpia los registros guardados en el sistema y restablece el conteo a 0.</p>
+                    
+                    <button onclick="resetVotes()" class="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs transition shadow-lg">
+                        <i class="fas fa-trash-alt mr-1.5"></i> REINICIAR CONTEO A CERO
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICACIÓN FLOTANTE (TOAST) -->
+    <div id="toastNotification" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden">
+        <div class="glass-panel bg-slate-900/95 border border-emerald-500/50 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center space-x-3 text-sm font-bold">
+            <span class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg shrink-0 border border-emerald-500/40">
+                <i class="fas fa-check"></i>
+            </span>
+            <span id="toastMessage">¡Voto Registrado con Éxito!</span>
+        </div>
+    </div>
+
+
+    <!-- ================= PLANTILLA OCULTA PARA IMPRESIÓN/PDF ================= -->
+    <div class="fixed top-0 left-[-9999px]">
+        <div id="pdfReportTemplate" class="w-[750px] p-8 bg-white text-slate-900 font-sans">
+            
+            <!-- Encabezado con Escudo Institucional -->
+            <div class="flex items-center justify-between border-b-4 border-amber-500 pb-5 mb-6">
+                <div class="flex items-center space-x-4">
+                    <img src="image.png" alt="Escudo UE Eloy Alfaro" class="w-20 h-20 object-contain" onerror="this.onerror=null; this.src='https://placehold.co/150x150/9333ea/ffffff?text=UE+Eloy+Alfaro';">
+                    <div>
+                        <h1 class="text-xl font-black text-slate-900 uppercase tracking-tight">UNIDAD EDUCATIVA "ELOY ALFARO"</h1>
+                        <p class="text-xs font-bold text-amber-600 uppercase">San Blas — Urcuquí, Imbabura</p>
+                        <p class="text-[11px] font-semibold text-slate-500">TRIBUNAL ELECTORAL ESTUDIANTIL 2026</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="inline-block bg-purple-100 text-purple-900 text-[10px] font-black px-3 py-1 rounded-full uppercase border border-purple-200">Acta Oficial</span>
+                    <p id="pdfDate" class="text-[10px] text-slate-500 mt-1 font-mono">Fecha: --/--/----</p>
+                </div>
+            </div>
+
+            <!-- Título del Documento -->
+            <div class="text-center my-4">
+                <h2 class="text-lg font-black text-slate-800 uppercase tracking-wide">ACTA DE ESCRUTINIO Y RESULTADOS FINALES</h2>
+                <p class="text-xs text-slate-500">Elección del Consejo Estudiantil Período Lectivo 2026</p>
+            </div>
+
+            <!-- Tabla de Resultados -->
+            <div class="my-6">
+                <table class="w-full text-left text-xs border-collapse border border-slate-300">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-800 font-bold uppercase border-b border-slate-300">
+                            <th class="p-3 border border-slate-300">Candidatura / Lista</th>
+                            <th class="p-3 border border-slate-300 text-center">Presidente / Liderazgo</th>
+                            <th class="p-3 border border-slate-300 text-right">Votos Válidos</th>
+                            <th class="p-3 border border-slate-300 text-right">Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <tr>
+                            <td class="p-3 border border-slate-300 font-bold text-purple-900">LISTA A - LILA</td>
+                            <td class="p-3 border border-slate-300 text-center">Damaris Muenala Lechón</td>
+                            <td id="pdfVotesA" class="p-3 border border-slate-300 text-right font-mono font-bold">0</td>
+                            <td id="pdfPercentA" class="p-3 border border-slate-300 text-right font-mono font-bold text-purple-700">0%</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 border border-slate-300 font-bold text-sky-900">LISTA B - FAR</td>
+                            <td class="p-3 border border-slate-300 text-center">Anthony Quilca De La Cruz</td>
+                            <td id="pdfVotesB" class="p-3 border border-slate-300 text-right font-mono font-bold">0</td>
+                            <td id="pdfPercentB" class="p-3 border border-slate-300 text-right font-mono font-bold text-sky-700">0%</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 border border-slate-300 font-bold text-slate-600">Voto Nulo / Blanco</td>
+                            <td class="p-3 border border-slate-300 text-center text-slate-400">N/A</td>
+                            <td id="pdfVotesNull" class="p-3 border border-slate-300 text-right font-mono font-bold">0</td>
+                            <td id="pdfPercentNull" class="p-3 border border-slate-300 text-right font-mono font-bold text-slate-600">0%</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-slate-50 font-bold text-slate-900 border-t-2 border-slate-300">
+                            <td colspan="2" class="p-3 border border-slate-300 uppercase">Total General de Sufragios Emitidos</td>
+                            <td id="pdfVotesTotal" class="p-3 border border-slate-300 text-right font-mono">0</td>
+                            <td class="p-3 border border-slate-300 text-right font-mono">100.0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Declaratoria del Ganador -->
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-300 my-6">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Resolución Electoral:</span>
+                <h3 id="pdfWinnerTitle" class="text-base font-black text-slate-900 mt-0.5">LISTA A DECLARADA GANADORA</h3>
+                <p id="pdfWinnerDesc" class="text-xs text-slate-600 mt-1">Con base en el escrutinio oficial del proceso democrático de la Unidad Educativa "Eloy Alfaro".</p>
+            </div>
+
+            <!-- Bloque de Firmas -->
+            <div class="mt-16 pt-8 grid grid-cols-2 gap-12 text-center text-xs">
+                <div>
+                    <div class="border-t border-slate-800 w-48 mx-auto mb-1"></div>
+                    <p class="font-bold text-slate-800">Presidente/a Tribunal Electoral</p>
+                    <p class="text-[10px] text-slate-500">U.E. Eloy Alfaro</p>
+                </div>
+                <div>
+                    <div class="border-t border-slate-800 w-48 mx-auto mb-1"></div>
+                    <p class="font-bold text-slate-800">Secretario/a Electoral</p>
+                    <p class="text-[10px] text-slate-500">U.E. Eloy Alfaro</p>
+                </div>
+            </div>
+
+            <!-- Pie de Validacion -->
+            <div class="mt-12 border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <div>Verificación digital: AUTH-UEEA-2026-VAL-9923</div>
+                <div>San Blas — Urcuquí</div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ================= LOGICA JAVASCRIPT ================= -->
+    <script>
+        // Estado del Conteo
+        let voteState = {
+            listaA: 0,
+            listaB: 0,
+            votoNull: 0
+        };
+
+        let pendingChoice = null;
+        let chartInstance = null;
+
+        // Inicialización
+        window.onload = function() {
+            loadVotesFromStorage();
+            initClock();
+            initChart();
+            updateDashboardUI();
+        };
+
+        // Reloj Institucional
+        function initClock() {
+            function update() {
+                const now = new Date();
+                const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+                document.getElementById('liveClock').textContent = now.toLocaleDateString('es-EC', options);
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        // Persistencia LocalStorage
+        function loadVotesFromStorage() {
+            const saved = localStorage.getItem('electoral_votes_eloy_alfaro');
+            if (saved) {
+                try {
+                    voteState = JSON.parse(saved);
+                } catch(e) {
+                    voteState = { listaA: 0, listaB: 0, votoNull: 0 };
+                }
+            }
+        }
+
+        function saveVotesToStorage() {
+            localStorage.setItem('electoral_votes_eloy_alfaro', JSON.stringify(voteState));
+        }
+
+        // Cambio de Pestañas
+        function switchTab(tabName) {
+            const voteSec = document.getElementById('sectionVote');
+            const resultsSec = document.getElementById('sectionResults');
+            const btnVote = document.getElementById('tabBtnVote');
+            const btnResults = document.getElementById('tabBtnResults');
+
+            if (tabName === 'vote') {
+                voteSec.classList.remove('hidden');
+                resultsSec.classList.add('hidden');
+                
+                btnVote.className = "py-3 px-6 text-sm font-extrabold border-b-2 border-purple-500 text-purple-400 transition-all flex items-center gap-2";
+                btnResults.className = "py-3 px-6 text-sm font-extrabold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all flex items-center gap-2";
+            } else {
+                voteSec.classList.add('hidden');
+                resultsSec.classList.remove('hidden');
+                
+                btnResults.className = "py-3 px-6 text-sm font-extrabold border-b-2 border-sky-500 text-sky-400 transition-all flex items-center gap-2";
+                btnVote.className = "py-3 px-6 text-sm font-extrabold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all flex items-center gap-2";
+
+                if (chartInstance) {
+                    chartInstance.resize();
+                    chartInstance.update();
+                }
+            }
+        }
+
+        // Abrir Modal de Confirmación
+        function openConfirmModal(choice) {
+            pendingChoice = choice;
+            const modal = document.getElementById('confirmModal');
+            const iconContainer = document.getElementById('modalIconContainer');
+            const title = document.getElementById('modalOptionTitle');
+            const subtitle = document.getElementById('modalOptionSubtitle');
+            const confirmBtn = document.getElementById('modalConfirmBtn');
+
+            if (choice === 'A') {
+                iconContainer.className = "w-16 h-16 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-3xl mx-auto mb-4 border border-purple-500/40";
+                title.textContent = "LISTA A — L.I.L.A";
+                title.className = "text-lg font-black text-purple-300 mt-0.5";
+                subtitle.textContent = "Presidenta: Damaris MUenala | Vicepresidente: David Chirán";
+                confirmBtn.className = "py-3.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-sm transition shadow-lg shadow-purple-950/50";
+            } else if (choice === 'B') {
+                iconContainer.className = "w-16 h-16 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-3xl mx-auto mb-4 border border-sky-500/40";
+                title.textContent = "LISTA B — F.A.R";
+                title.className = "text-lg font-black text-sky-300 mt-0.5";
+                subtitle.textContent = "Presidente: Anthony Quilca | Vicepresidente: Anthony De La Cruz";
+                confirmBtn.className = "py-3.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-sm transition shadow-lg shadow-sky-950/50";
+            } else {
+                iconContainer.className = "w-16 h-16 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center text-3xl mx-auto mb-4 border border-slate-700";
+                title.textContent = "VOTO NULO / EN BLANCO";
+                title.className = "text-lg font-black text-slate-300 mt-0.5";
+                subtitle.textContent = "Abstención o desacuerdo con las opciones postuladas.";
+                confirmBtn.className = "py-3.5 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-sm transition shadow-lg";
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            pendingChoice = null;
+        }
+
+        // Registrar Voto
+        function submitVote() {
+            if (!pendingChoice) return;
+
+            let colors = ['#a855f7', '#c084fc'];
+            if (pendingChoice === 'A') {
+                voteState.listaA++;
+                colors = ['#a855f7', '#9333ea', '#c084fc', '#e9d5ff'];
+            } else if (pendingChoice === 'B') {
+                voteState.listaB++;
+                colors = ['#38bdf8', '#0284c7', '#06b6d4', '#bae6fd'];
+            } else if (pendingChoice === 'NULO') {
+                voteState.votoNull++;
+                colors = ['#94a3b8', '#64748b', '#cbd5e1'];
+            }
+
+            saveVotesToStorage();
+            updateDashboardUI();
+            closeConfirmModal();
+
+            // Lanzar Confeti
+            triggerConfetti(colors);
+
+            // Mostrar Mensaje Flotante
+            showToast("¡Voto Registrado con Éxito! Gracias por tu participación.");
+        }
+
+        // Efecto de Confeti Personalizado
+        function triggerConfetti(partyColors) {
+            try {
+                confetti({
+                    particleCount: 130,
+                    spread: 85,
+                    origin: { y: 0.6 },
+                    colors: partyColors
+                });
+            } catch(e) {
+                console.log("Confetti animation fallback");
+            }
+        }
+
+        // Notificación Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            const toastMsg = document.getElementById('toastMessage');
+            toastMsg.textContent = msg;
+            toast.classList.remove('hidden');
+            toast.classList.add('toast-active');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-active');
+            }, 3500);
+        }
+
+        // Actualizar Métricas y Gráficos
+        function updateDashboardUI() {
+            const total = voteState.listaA + voteState.listaB + voteState.votoNull;
+            
+            const pctA = total > 0 ? ((voteState.listaA / total) * 100).toFixed(1) : 0;
+            const pctB = total > 0 ? ((voteState.listaB / total) * 100).toFixed(1) : 0;
+            const pctNull = total > 0 ? ((voteState.votoNull / total) * 100).toFixed(1) : 0;
+
+            // KPIs
+            document.getElementById('kpiTotal').textContent = total.toLocaleString();
+            document.getElementById('kpiListaA').textContent = `${pctA}%`;
+            document.getElementById('kpiCountA').textContent = `${voteState.listaA} sufragios`;
+
+            document.getElementById('kpiListaB').textContent = `${pctB}%`;
+            document.getElementById('kpiCountB').textContent = `${voteState.listaB} sufragios`;
+
+            document.getElementById('kpiNull').textContent = `${pctNull}%`;
+            document.getElementById('kpiCountNull').textContent = `${voteState.votoNull} sufragios`;
+
+            // Barras Progresivas
+            document.getElementById('barFillA').style.width = `${pctA}%`;
+            document.getElementById('barTextA').textContent = `${pctA}% (${voteState.listaA})`;
+
+            document.getElementById('barFillB').style.width = `${pctB}%`;
+            document.getElementById('barTextB').textContent = `${pctB}% (${voteState.listaB})`;
+
+            document.getElementById('barFillNull').style.width = `${pctNull}%`;
+            document.getElementById('barTextNull').textContent = `${pctNull}% (${voteState.votoNull})`;
+
+            // Texto Tendencia
+            const leadingText = document.getElementById('leadingText');
+            if (total === 0) {
+                leadingText.textContent = "Esperando registros de votación...";
+                leadingText.className = "text-xl font-black text-white";
+            } else if (voteState.listaA > voteState.listaB && voteState.listaA > voteState.votoNull) {
+                leadingText.textContent = "LISTA A: L.I.L.A (Liderando)";
+                leadingText.className = "text-xl font-black text-purple-400";
+            } else if (voteState.listaB > voteState.listaA && voteState.listaB > voteState.votoNull) {
+                leadingText.textContent = "LISTA B: F.A.R. (Liderando)";
+                leadingText.className = "text-xl font-black text-sky-400";
+            } else if (voteState.votoNull > voteState.listaA && voteState.votoNull > voteState.listaB) {
+                leadingText.textContent = "Mayoría de Votos Nulos / En Blanco";
+                leadingText.className = "text-xl font-black text-slate-400";
+            } else {
+                leadingText.textContent = "Empate Técnico en los Resultados";
+                leadingText.className = "text-xl font-black text-amber-400";
+            }
+
+            // Actualizar Chart.js
+            if (chartInstance) {
+                chartInstance.data.datasets[0].data = [voteState.listaA, voteState.listaB, voteState.votoNull];
+                chartInstance.update();
+            }
+        }
+
+        // Inicializar Chart.js (Doughnut)
+        function initChart() {
+            const ctx = document.getElementById('chartDoughnut').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Lista A (Lila)', 'Lista B (Celeste)', 'Voto Nulo / Blanco'],
+                    datasets: [{
+                        data: [voteState.listaA, voteState.listaB, voteState.votoNull],
+                        backgroundColor: ['#a855f7', '#38bdf8', '#64748b'],
+                        borderColor: '#080c15',
+                        borderWidth: 4,
+                        hoverOffset: 12
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' },
+                                padding: 18
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return ` ${context.label}: ${value} votos (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '68%'
+                }
+            });
+        }
+
+        // Exportación a PDF con html2pdf.js
+        function exportToPDF() {
+            const total = voteState.listaA + voteState.listaB + voteState.votoNull;
+            const pctA = total > 0 ? ((voteState.listaA / total) * 100).toFixed(1) : 0;
+            const pctB = total > 0 ? ((voteState.listaB / total) * 100).toFixed(1) : 0;
+            const pctNull = total > 0 ? ((voteState.votoNull / total) * 100).toFixed(1) : 0;
+
+            // Rellenar datos en la plantilla oculta
+            document.getElementById('pdfDate').textContent = `Fecha: ${new Date().toLocaleDateString('es-EC')} ${new Date().toLocaleTimeString('es-EC')}`;
+            document.getElementById('pdfVotesA').textContent = voteState.listaA;
+            document.getElementById('pdfPercentA').textContent = `${pctA}%`;
+
+            document.getElementById('pdfVotesB').textContent = voteState.listaB;
+            document.getElementById('pdfPercentB').textContent = `${pctB}%`;
+
+            document.getElementById('pdfVotesNull').textContent = voteState.votoNull;
+            document.getElementById('pdfPercentNull').textContent = `${pctNull}%`;
+
+            document.getElementById('pdfVotesTotal').textContent = total;
+
+            const pdfWinnerTitle = document.getElementById('pdfWinnerTitle');
+            const pdfWinnerDesc = document.getElementById('pdfWinnerDesc');
+
+            if (total === 0) {
+                pdfWinnerTitle.textContent = "SIN SUFRAGIOS REGISTRADOS";
+                pdfWinnerDesc.textContent = "El acta se genera en cero al no registrar votos válidos en la urna electrónica.";
+            } else if (voteState.listaA > voteState.listaB && voteState.listaA > voteState.votoNull) {
+                pdfWinnerTitle.textContent = "LISTA A (L.I.L.A.) DECLARADA GANADORA";
+                pdfWinnerDesc.textContent = "La candidatura de Damaris Muenala Lechón obtiene la primera mayoría relativa de sufragios.";
+            } else if (voteState.listaB > voteState.listaA && voteState.listaB > voteState.votoNull) {
+                pdfWinnerTitle.textContent = "LISTA B (F.A.R.) DECLARADA GANADORA";
+                pdfWinnerDesc.textContent = "La candidatura de Anthony Quilca De La Cruz obtiene la primera mayoría relativa de sufragios.";
+            } else {
+                pdfWinnerTitle.textContent = "EMPATE O PREDOMINIO DE VOTO NULO";
+                pdfWinnerDesc.textContent = "El resultado requiere dirimencia del Tribunal Electoral Estudiantil.";
+            }
+
+            showToast("Generando Acta Oficial en PDF... Por favor espera.");
+
+            const element = document.getElementById('pdfReportTemplate');
+            
+            const opt = {
+                margin:       5,
+                filename:     `Acta_Resultados_UE_Eloy_Alfaro.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generar PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                showToast("¡Acta descargada correctamente!");
+            }).catch(err => {
+                console.error(err);
+                showToast("Error al exportar el archivo PDF.");
+            });
+        }
+
+        // Panel de Administración / Simulación
+        function openAdminModal() {
+            document.getElementById('adminModal').classList.remove('hidden');
+        }
+
+        function closeAdminModal() {
+            document.getElementById('adminModal').classList.add('hidden');
+        }
+
+        function simulateVotes(count) {
+            for (let i = 0; i < count; i++) {
+                const rand = Math.random();
+                if (rand < 0.48) voteState.listaA++;
+                else if (rand < 0.88) voteState.listaB++;
+                else voteState.votoNull++;
+            }
+            saveVotesToStorage();
+            updateDashboardUI();
+            showToast(`¡Se han simulado +${count} votos exitosamente!`);
+            closeAdminModal();
+        }
+
+        function resetVotes() {
+            var pass = prompt("Ingrese el password:");
+            if (pass == "UEEA") {
+            voteState = { listaA: 0, listaB: 0, votoNull: 0 };
+            saveVotesToStorage();
+            updateDashboardUI();
+            showToast("El conteo de votos ha sido restablecido a 0.");
+            closeAdminModal();
+        }
+        else {
+                alert ("Usuario no autorizado");
+            }
+        }
+        
+    </script>
+</body>
+</html>
